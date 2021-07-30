@@ -8,7 +8,6 @@ require_once("lib/Tinify/Client.php");
 require_once("lib/Tinify.php");
 
 function uploadExtended($file) {
-	
 	$rename = option('werbschaft.uploadExtended.rename');
 	$excludeCharacters = option('werbschaft.uploadExtended.excludeCharacters');
 	$kirbyResize = option('werbschaft.uploadExtended.kirbyResize');
@@ -24,152 +23,142 @@ function uploadExtended($file) {
 	$uploadLimit = option('werbschaft.uploadExtended.uploadLimit');
 	$uploadLimitMegabyte = option('werbschaft.uploadExtended.uploadLimitMegabyte');
 	$debug = option('werbschaft.uploadExtended.debug');
-	
+
 	$message = '';
 	$excluded = false;
 
 	if( !empty($excludeTemplates) || !empty($excludePages ) ) {
-		
 		$excluded = in_array( $file->page()->intendedTemplate(), $excludeTemplates ) || in_array( $file->page()->uid(), $excludePages );
-		
 	}
 	
 	if ( $rename == true ) {
-		
 		$fileName = str_replace($excludeCharacters,'-',$file->name(),$count);
-		
 		if ( $count > 0 ) {
-			
 			$file = $file->changeName($fileName);
 			$message .= ' The file was renamed according to the specifications. ';
-			
 		}
-		
-		
 	}
 
 	if ( !$excluded ) {
-		
 		if ( $file->isResizable() ) {
-		
 			// RESIZE THE IMAGE
-			
 			if ( $kirbyResize == true ) {
-			
 				if( $file->width() > $maxWidth || $file->height() > $maxHeight ) {
-					
 					if ( $file->width() > $maxWidth ) {
 						$message .= ' The file is with ' . $file->width() . ' pixels wider than the allowed ' . $maxWidth . ' pixels and was reduced accordingly. ';
 					}
-					
 					if ( $file->height() > $maxHeight ) {
 						$message .= ' The file is with ' . $file->height() . ' pixels higher than the allowed ' . $maxHeight . ' pixels and was reduced accordingly. ';
 					}
-					
 					try {
-						
 						kirby()->thumb($file->root(), $file->root(), [
 							'width' => $maxWidth,
 							'height' => $maxHeight,
 							'quality' => $quality
 						]);
-						
 					} catch (Exception $e) {
-						
 						$message .= $e->getMessage();
-						
 					}
 				}
-			
 			}
-	
+
 			// CHECK FOR TINY PNG
-			
 			if ( $tinyPng == true ) {
 				
 				try {
-					
 					\Tinify\setKey($tinyPngKey);
 					\Tinify\validate();
 					$compressionsCount = \Tinify\compressionCount() + 1;
 					$message .= ' There have already been ' . $compressionsCount . ' compressions made with the TinyPNG API key this month. 500 are free per Key. ';
-					
 				} catch(\Tinify\Exception $e) {
-					
 					$message .= ' The Tiny PNG Api Key is not correct. Disable Tiny PNG or enter a valid key. ';
-					
 				}
-				
+
 				// UPLOAD AND MINIFY
-				
 				$fileName = $file->name();
-				
 				if ( $file->page() ) {
-					
 					$path = $file->page()->root();
-					
 				} else {
-					
 					$path = site()->root();
-					
 				}
-				
 				try {
-					
 					$source = \Tinify\fromFile($file->root());
-					
 					// RESIZE THROUGH TINY PNG
-					
 					if ( $tinyPngResize == true ) {
-						
 						$source = $source->resize([
 							"method" => $tinyPngResizeMethod,
 							"width" => $maxWidth,
 							"height" => $maxHeight
 						]);
-						
 					}
-					
 					$source->toFile( $path . '/' . $fileName . '.' . $file->extension() );
 					$message .= ' The file was optimized by TinyPNG. ';
-		
 				} catch(\Tinify\Exception $e) {
-					
 					$message .= $e->getMessage();
-					
 				}
-				
 			}
-			
 		} else {
-			
 			if ( $uploadLimit == true ) {
-				
 				$uploadLimitBytes = $uploadLimitMegabyte * 1048576;
-				
 				$fileSizeBytes = $file->size();
 				$fileSizeNice = $file->niceSize();
-					
 				if ( $fileSizeBytes > $uploadLimitBytes ) {
-				
 					$file->delete();
-				
 					$message .= ' The file is with ' . $fileSizeNice . ' too big for the upload and was deleted because the limit for files is ' . $uploadLimitMegabyte . ' MB. ';
-				
 				}
-				
 			}
+		}
+	}
 
+	if ( $debug == true ) {
+		throw new Exception($message);
+	}
+}
+
+function resizeImage($imageTo, $method = 'scale', $width = 0, $height = 0){
+	$imageName = $imageTo->name().'-'.$method.'-'.$width.'x'.$height.'.'.$imageTo->extension();
+	$realpath = str_replace($imageTo->filename(), '', $imageTo->realpath());
+	$newFileRoute = $realpath.$imageName;
+	$newUrlFile = str_replace($imageTo->filename(), '', $imageTo->url());
+	$newUrlFile = str_replace('/media/pages', '', $newUrlFile);
+	$newUrlFile = substr($newUrlFile, 0, strlen($newUrlFile) - 1);
+	$newUrlFile = substr($newUrlFile, 0, strrpos($newUrlFile, '/') + 1);
+	$newUrlFile = $newUrlFile . $imageName;
+
+	if(!file_exists($newFileRoute)) {
+		$tinyPngKey = option('werbschaft.uploadExtended.tinyPngKey');
+		\Tinify\setKey($tinyPngKey);
+
+		$source = \Tinify\fromFile($imageTo->url()); //image to be resize
+		$resized = '';
+		if($method === 'scale' && $width === 0 && $height >= 1) {
+			$resized = $source->resize(array(
+				"method" => $method,
+				"height" => $height
+			));
+		} else if($method === 'scale' && $height === 0 && $width >= 1) {
+			$resized = $source->resize(array(
+				"method" => $method,
+				"width" => $width
+			));
+		} else if($method === 'optim') {
+			$source->toFile($newFileRoute); //resized image
+		} else {
+			$resized = $source->resize(array(
+				"method" => $method,
+				"width" => $width,
+				"height" => $height
+			));
 		}
 
+		if($method !== 'optim') {
+			$resized->toFile($newFileRoute); //resized image
+		}
+
+		return $newUrlFile;
+	} else {
+		return $newUrlFile;
 	}
-	
-	if ( $debug == true ) {
-		
-		throw new Exception($message);
-		
-	}
-	
 }
 
 Kirby::plugin('werbschaft/uploadExtended', [
