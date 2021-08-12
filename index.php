@@ -1,5 +1,4 @@
 <?php
-
 require_once("lib/Tinify/Exception.php");
 require_once("lib/Tinify/ResultMeta.php");
 require_once("lib/Tinify/Result.php");
