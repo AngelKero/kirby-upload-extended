@@ -129,6 +129,10 @@ function resizeImage($imageTo, $method = 'scale', $width = 0, $height = 0){
 	$newUrlFile = substr($newUrlFile, 0, strlen($newUrlFile) - 1);
 	$newUrlFile = substr($newUrlFile, 0, strrpos($newUrlFile, '/') + 1);
 	$newUrlFile = $newUrlFile . $imageName;
+	$pageUrl = page($imageTo->page())->site()->url();
+	$pageUrl = substr($pageUrl, strrpos($pageUrl, '//') + 2, strlen($pageUrl));
+	$newUrlFile = substr($newUrlFile, strrpos($newUrlFile, $pageUrl) + strlen($pageUrl), strlen($newUrlFile));
+	$newUrlFile = image($newUrlFile)->url();
 
 	if(!file_exists($newFileRoute)) {
 		$tinyPngKey = option('werbschaft.uploadExtended.tinyPngKey');
