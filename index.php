@@ -120,55 +120,67 @@ function uploadExtended($file) {
 	}
 }
 
+
 function resizeImage($imageTo, $method = 'scale', $width = 0, $height = 0){
-	$imageName = $imageTo->name().'-'.$method.'-'.$width.'x'.$height.'.'.$imageTo->extension();
-	$realpath = str_replace($imageTo->filename(), '', $imageTo->realpath());
-	$newFileRoute = $realpath.$imageName;
-	$newUrlFile = str_replace($imageTo->filename(), '', $imageTo->url());
-	$newUrlFile = str_replace('/media/pages', '', $newUrlFile);
-	$newUrlFile = substr($newUrlFile, 0, strlen($newUrlFile) - 1);
-	$newUrlFile = substr($newUrlFile, 0, strrpos($newUrlFile, '/') + 1);
-	$newUrlFile = $newUrlFile . $imageName;
-	$pageUrl = page($imageTo->page())->site()->url();
-	$pageUrl = substr($pageUrl, strrpos($pageUrl, '//') + 2, strlen($pageUrl));
-	$newUrlFile = substr($newUrlFile, strrpos($newUrlFile, $pageUrl) + strlen($pageUrl), strlen($newUrlFile));
-	$newUrlFile = image($newUrlFile)->url();
-
-	if(!file_exists($newFileRoute)) {
-		$tinyPngKey = option('werbschaft.uploadExtended.tinyPngKey');
-		\Tinify\setKey($tinyPngKey);
-
-		$source = \Tinify\fromFile($imageTo->url()); //image to be resize
-		$resized = '';
-		if($method === 'scale' && $width === 0 && $height >= 1) {
-			$resized = $source->resize(array(
-				"method" => $method,
-				"height" => $height
-			));
-		} else if($method === 'scale' && $height === 0 && $width >= 1) {
-			$resized = $source->resize(array(
-				"method" => $method,
-				"width" => $width
-			));
-		} else if($method === 'optim') {
-			$source->toFile($newFileRoute); //resized image
-		} else {
-			$resized = $source->resize(array(
-				"method" => $method,
-				"width" => $width,
-				"height" => $height
-			));
-		}
-
-		if($method !== 'optim') {
-			$resized->toFile($newFileRoute); //resized image
-		}
-
-		return $newUrlFile;
-	} else {
-		return $newUrlFile;
-	}
+    if($imageTo) {
+        try {
+            $imageName = $imageTo->name().'-'.$method.'-'.$width.'x'.$height.'.'.$imageTo->extension();
+        	$realpath = str_replace($imageTo->filename(), '', $imageTo->realpath());
+        	$newFileRoute = $realpath.$imageName;
+        	$newUrlFile = str_replace($imageTo->filename(), '', $imageTo->url());
+        	$newUrlFile = str_replace('/media/pages', '', $newUrlFile);
+        	$newUrlFile = substr($newUrlFile, 0, strlen($newUrlFile) - 1);
+        	$newUrlFile = substr($newUrlFile, 0, strrpos($newUrlFile, '/') + 1);
+        	$newUrlFile = $newUrlFile . $imageName;
+        	$pageUrl = page($imageTo->page())->site()->url();
+        	$pageUrl = substr($pageUrl, strrpos($pageUrl, '//') + 2, strlen($pageUrl));
+        	$newUrlFile = substr($newUrlFile, strrpos($newUrlFile, $pageUrl) + strlen($pageUrl), strlen($newUrlFile));
+        
+        
+        	if(!file_exists($newFileRoute)) {
+        		$tinyPngKey = option('werbschaft.uploadExtended.tinyPngKey');
+        		\Tinify\setKey($tinyPngKey);
+        
+        		$source = \Tinify\fromFile($imageTo->url()); //image to be resize
+        		$resized = '';
+        		if($method === 'scale' && $width === 0 && $height >= 1) {
+        			$resized = $source->resize(array(
+        				"method" => $method,
+        				"height" => $height
+        			));
+        		} else if($method === 'scale' && $height === 0 && $width >= 1) {
+        			$resized = $source->resize(array(
+        				"method" => $method,
+        				"width" => $width
+        			));
+        		} else if($method === 'optim') {
+        			$source->toFile($newFileRoute); //resized image
+        		} else {
+        			$resized = $source->resize(array(
+        				"method" => $method,
+        				"width" => $width,
+        				"height" => $height
+        			));
+        		}
+        
+        		if($method !== 'optim') {
+        			$resized->toFile($newFileRoute); //resized image
+        		}
+        		
+        		return $newUrlFile;
+        	} else {
+        		$newUrlFile = image($newUrlFile);
+        		$newUrlFile = $newUrlFile->url();
+        		return $newUrlFile;
+        	}
+        } catch (Exception $e) {
+            return 'https://via.placeholder.com/700/FFFF00/000000?Text=Imagen%20no%20encontrada,%20recarga la pagina.';
+        }
+    } else {
+        return 'https://via.placeholder.com/700/FFFF00/000000?Text=Imagen%20no%20encontrada,%20recarga la pagina.';
+    }
 }
+
 
 Kirby::plugin('werbschaft/uploadExtended', [
 	'options' => [
